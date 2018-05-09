@@ -1,7 +1,10 @@
-// ConsoleApplication2.cpp : Define o ponto de entrada para a aplicação de console.
-//
+/***Protocolo de comunicação
+*Envio de mensagem: origem|destino|texto_ 
+*Conexão: origem||_
+*Desconexão: origem|_|_
+*/
 
-#include "stdafx.h"
+#include "stdafx.h" //função de cabeçalho visual studio 2017
 #include <iostream>
 #include <boost/array.hpp>
 #include <cmath>
@@ -47,7 +50,7 @@ int main(int argc, char* argv[])
 		t2.join();
 	}
 	else{
-		std::cout << "Conexão negada pelo servidor!\n";
+		std::cout << "Conexão negada pelo servidor, \nMotivo: seu nickname já estar sendo utilizado por outro usuário!\n";
 	}
 	system("PAUSE");
 	return 0;
@@ -60,7 +63,7 @@ bool criar_conexao(boost::asio::ip::tcp::socket& socket, std::string nickname) {
 	escreve_buffer(socket, pacote_estabelecer_conexao);
 	ler_buffer(socket,resposta_servidor);
 	empacotar_msg(nao_aceitou_conexao, caracterFimMsg, caracterFimMsg);
-	if(resposta_servidor != nao_aceitou_conexao){
+	if(resposta_servidor != nao_aceitou_conexao){ //se já tiver nick no servidor
 		return true;
 	}  
 	return false;
@@ -136,6 +139,7 @@ void menu_principal(boost::asio::ip::tcp::socket& socket, std::string nickname){
 		std::cout << "1 - Mandar mensagem\n 2 - Exibir quem está online\n 3 - Desconectar\n";
 		std::cout << "Digite a opção: ";
 		std::cin >> opcao;
+		chave.unlock();			
 		case op_mandar_msg:
 			mandar_msg(socket,nickname);
 			break;
