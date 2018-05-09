@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 	t.join(); 
 	
 	
-	boost::thread t2();
+	boost::thread t2(boost::bind(menu_principal, socket, nickname);
 	t2.join();
 
 	system("PAUSE");
