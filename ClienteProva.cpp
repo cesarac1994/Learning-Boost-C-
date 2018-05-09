@@ -18,7 +18,7 @@ void destrinche_msg(std::string, std::string&, std::string&, std::string&);
 void empacotar_msg(std::string&, std::string, std::string, std::string);
 void ler_buffer(boost::asio::ip::tcp::socket&);
 void escreve_buffer(boost::asio::ip::tcp::socket&, std::string);
-void criar_conexao(boost::asio::ip::tcp::socket&, std::string);
+bool criar_conexao(boost::asio::ip::tcp::socket&, std::string);
 void mandar_msg(boost::asio::ip::tcp::socket&, std::string);
 void menu_principal(boost::asio::ip::tcp::socket&, std::string);
 void desconectar(boost::asio::ip::tcp::socket&, std::string);
@@ -42,22 +42,28 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << e.what() << std::endl;
 	}
-	boost::thread t(boost::bind(criar_conexao,nickname));
-	t.join(); 
-	
-	
-	boost::thread t2(boost::bind(menu_principal, socket, nickname);
-	t2.join();
-
+	if(criar_conexao(socket,nickname)){	
+		boost::thread t2(boost::bind(menu_principal, socket, nickname);
+		t2.join();
+	}
+	else{
+		std::cout << "Conexão negada pelo servidor!\n";
+	}
 	system("PAUSE");
 	return 0;
 }
 
 //Criar conexão
-void criar_conexao(boost::asio::ip::tcp::socket& socket, std::string nickname) {
-	std::string mensagem;
-	empacotar_msg(mensagem, nickname, "", "");
-	escreve_buffer(socket, mensagem);
+bool criar_conexao(boost::asio::ip::tcp::socket& socket, std::string nickname) {
+	std::string pacote_estabelecer_conexao, resposta_servidor, nao_aceitou_conexao;
+	empacotar_msg(pacote_estabelecer_conexao, nickname, "", "");
+	escreve_buffer(socket, pacote_estabelecer_conexao);
+	ler_buffer(socket,resposta_servidor);
+	empacotar_msg(nao_aceitou_conexao, caracterFimMsg, caracterFimMsg);
+	if(resposta_servidor != nao_aceitou_conexao){
+		return true;
+	}  
+	return false;
 }
 
 void destrinche_msg(std::string msg, std::string& orig, std::string& dest, std::string& corpo) {
@@ -72,8 +78,7 @@ void empacotar_msg(std::string& msg, std::string orig, std::string dest, std::st
 	msg = orig + caracterSeparador + dest + caracterSeparador + corpo + caracterFimMsg;
 }
 
-void ler_buffer(boost::asio::ip::tcp::socket& scket) {
-	chave.lock();
+void ler_buffer(boost::asio::ip::tcp::socket& scket, std::string& mensagem) {
 	for (;;)
 	{
 		boost::array<char, 128> buf;
@@ -83,18 +88,23 @@ void ler_buffer(boost::asio::ip::tcp::socket& scket) {
 			break; // Connection closed cleanly by peer.
 		else if (error)
 			throw boost::system::system_error(error); // Some other error.
-		std::cout.write(buf.data(), len);
+		mensagem += buf.data();
 	}
-	chave.unlock();
 }
 
 void escreve_buffer(boost::asio::ip::tcp::socket& scket, std::string msg) {
+	try{
 		boost::system::error_code error;
 		chave.lock();
 		size_t len = scket.write_some(boost::asio::buffer(msg,msg.length()), error);
 		chave.unlock();
 		if (error)
 			throw boost::system::system_error(error); // Some other error.
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << e.what() << std::endl; //salvar no arquivo tambem
+	}
 }
 
 void desconectar(boost::asio::ip::tcp::socket& socket, std::string nickname){
@@ -105,12 +115,10 @@ void desconectar(boost::asio::ip::tcp::socket& socket, std::string nickname){
 
 void mandar_msg(boost::asio::ip::tcp::socket& socket, std::string nickname){
 	std::string dest,texto,msg;
-	chave.lock();
 	std::cout << "Digite o destino ";
 	cin.getline(dest);
 	std::cout << "Digite a mensagem ";
 	cin.getline(texto);
-	chave.unlock();
 	empacotar_msg(msg, nickname, dest, texto);
 	escreve_buffer(socket, msg);
 }
@@ -125,11 +133,9 @@ void menu_principal(boost::asio::ip::tcp::socket& socket, std::string nickname){
 	};
 	int opcao;
 	switch(opcao){
-		chave.lock();
 		std::cout << "1 - Mandar mensagem\n 2 - Exibir quem está online\n 3 - Desconectar\n";
 		std::cout << "Digite a opção: ";
 		std::cin >> opcao;
-		chave.unlock();			
 		case op_mandar_msg:
 			mandar_msg(socket,nickname);
 			break;
@@ -139,9 +145,7 @@ void menu_principal(boost::asio::ip::tcp::socket& socket, std::string nickname){
 			desconectar(socket, nickname);
 			break;
 		default:
-			chave.lock();
 			std::cout << "Opção inválida";
-			chave.unlock();
 	}
 }
 
